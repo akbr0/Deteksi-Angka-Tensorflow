@@ -1,5 +1,5 @@
-Flask
-tensorflow
-numpy
-Pillow
-opencv-python
+Flask==2.3.3
+tensorflow==2.13.0
+numpy==1.23.5
+Pillow==9.4.0
+opencv-python==4.8.0.74
