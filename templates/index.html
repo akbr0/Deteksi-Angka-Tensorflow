@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digit Recognition</title>
+    <!-- Link ke Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-image: url('/static/blue.png'); /* Path ke gambar */
+            background-size: cover; /* Gambar menutupi seluruh layar */
+            background-position: center; /* Gambar dipusatkan */
+            background-repeat: no-repeat; /* Tidak mengulang gambar */
+            height: 100vh; /* Tinggi penuh satu layar */
+            margin: 0; /* Hilangkan margin default */
+            color: white; /* Warna teks agar kontras */
+        }
+        h1 {
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .video-container {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        #video {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            max-width: 320px;
+        }
+        #canvas {
+            display: none;
+        }
+        .btn-custom {
+            width: 100%;
+            max-width: 320px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h1>Digit Recognition</h1>
+            <p class="lead">Use your camera or choose an image to predict a handwritten digit!</p>
+        </div>
+    </div>
+
+    <!-- Camera Section -->
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <div class="video-container">
+                <video id="video" autoplay class="border rounded"></video>
+                <canvas id="canvas" width="300" height="300"></canvas>
+            </div>
+            <button class="btn btn-primary btn-custom" id="capture">Capture and Predict from Camera</button>
+        </div>
+    </div>
+
+    <hr>
+
+    <!-- File upload section -->
+    <div class="row justify-content-center">
+        <div class="col-md-6 text-center">
+            <input type="file" id="fileInput" accept="image/*" class="form-control mb-3">
+            <button class="btn btn-success btn-custom" id="uploadFileButton">Upload and Predict from File</button>
+        </div>
+    </div>
+
+    <!-- Prediction result -->
+    <div id="result"></div>
+</div>
+
+<!-- Link ke Bootstrap JS dan dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const captureButton = document.getElementById('capture');
+    const uploadFileButton = document.getElementById('uploadFileButton');
+    const fileInput = document.getElementById('fileInput');
+    const resultDiv = document.getElementById('result');
+
+    // Akses kamera pengguna
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+            video.srcObject = stream;
+        })
+        .catch((error) => {
+            console.error('Error accessing camera:', error);
+        });
+
+    // Menangkap gambar dan mengirimkan ke server
+    captureButton.addEventListener('click', () => {
+        // Ambil frame video dan gambar ke canvas
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL('image/png');
+
+        // Kirim gambar ke server
+        fetch('/predict_camera', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataURL }),
+        })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.error) {
+                    resultDiv.textContent = `Error: ${data.error}`;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Prediction: <strong>${data.prediction}</strong></h3>
+                        <p>Confidence: <strong>${data.confidence}</strong></p>
+                    `;
+                }
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+                resultDiv.textContent = 'An error occurred while predicting.';
+            });
+    });
+
+    // Menangani unggahan file dan prediksi
+    uploadFileButton.addEventListener('click', () => {
+        const file = fileInput.files[0];
+        if (file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/predict_file', {
+                method: 'POST',
+                body: formData,
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (data.error) {
+                        resultDiv.textContent = `Error: ${data.error}`;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <h3>Prediction: <strong>${data.prediction}</strong></h3>
+                            <p>Confidence: <strong>${data.confidence}</strong></p>
+                        `;
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                    resultDiv.textContent = 'An error occurred while predicting.';
+                });
+        } else {
+            resultDiv.textContent = 'Please select an image first!';
+        }
+    });
+</script>
+
+</body>
+</html>
